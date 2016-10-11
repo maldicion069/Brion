@@ -34,6 +34,17 @@ namespace brain
 namespace neuron
 {
 
+servus::Serializable::Data Morphology::toBinary() const
+{
+    return _impl->toBinary();
+}
+
+Morphology::Morphology( const void* data, const size_t size )
+    : _impl( new Impl( data, size ))
+{
+    _impl->ref();
+}
+
 Morphology::Morphology( const URI& source, const Matrix4f& transform )
     : _impl( new Impl( brion::Morphology( source.getPath( ))))
 {
@@ -80,7 +91,7 @@ const Vector2is& Morphology::getSections() const
 
 const SectionTypes& Morphology::getSectionTypes() const
 {
-    return *_impl->types;
+    return reinterpret_cast< std::vector<SectionType>& >( *_impl->types );
 }
 
 const Vector2is& Morphology::getApicals() const
@@ -114,7 +125,7 @@ Sections Morphology::getSections( const SectionTypes& types ) const
 
 Section Morphology::getSection( const uint32_t& id ) const
 {
-    if(( *_impl->types )[id] == SECTION_SOMA )
+    if(( *_impl->types )[id] == brion::enums::SECTION_SOMA )
         LBTHROW(
             std::runtime_error( "The soma cannot be accessed as a Section" ));
 

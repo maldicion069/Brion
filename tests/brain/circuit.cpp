@@ -3,29 +3,18 @@
  *
  * This file is part of Brion <https://github.com/BlueBrain/Brion>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * This library is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License version 3.0 as published
+ * by the Free Software Foundation.
  *
- * - Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- * - Neither the name of Eyescale Software GmbH nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
+ * This library is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
+ * details.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <brion/brion.h>
@@ -34,6 +23,8 @@
 
 #define BOOST_TEST_MODULE Circuit
 #include <boost/filesystem/path.hpp>
+#include <boost/foreach.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/test/unit_test.hpp>
 #include <lunchbox/bitOperation.h>
 
@@ -228,15 +219,31 @@ void _checkMorphology( const brain::neuron::Morphology& morphology,
 }
 }
 
-BOOST_AUTO_TEST_CASE( load_bad_morphologies )
+BOOST_AUTO_TEST_CASE( test_gid_out_of_range )
 {
-    const brain::Circuit circuit( (brion::URI( bbp::test::getBlueconfig( ))));
+    typedef boost::shared_ptr< const brain::Circuit > CircuitPtr;
+    std::vector< CircuitPtr > circuits;
+    circuits.push_back( CircuitPtr( new brain::Circuit(
+                                        brion::URI( BBP_TEST_BLUECONFIG ))));
+#ifdef BRAIN_USE_MVD3
+    circuits.push_back( CircuitPtr( new brain::Circuit(
+                                        brion::URI( BBP_TEST_BLUECONFIG3 ))));
+#endif
 
     brion::GIDSet gids;
     gids.insert( 10000000 );
-    BOOST_CHECK_THROW(
-        circuit.loadMorphologies( gids, brain::Circuit::COORDINATES_LOCAL ),
-        std::runtime_error );
+    BOOST_FOREACH( const CircuitPtr& circuit, circuits )
+    {
+        BOOST_CHECK_THROW( circuit->getPositions( gids ), std::runtime_error );
+        BOOST_CHECK_THROW( circuit->getMorphologyTypes( gids ),
+                           std::runtime_error );
+        BOOST_CHECK_THROW( circuit->getElectrophysiologyTypes( gids ),
+                           std::runtime_error );
+        BOOST_CHECK_THROW( circuit->getRotations( gids ), std::runtime_error );
+        BOOST_CHECK_THROW( circuit->loadMorphologies(
+                               gids, brain::Circuit::Coordinates::local),
+                           std::runtime_error );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( load_local_morphologies )
@@ -248,7 +255,7 @@ BOOST_AUTO_TEST_CASE( load_local_morphologies )
         gids.insert(gid);
     // This call also tests brain::Circuit::getMorphologyURIs
     const brain::neuron::Morphologies morphologies =
-        circuit.loadMorphologies( gids, brain::Circuit::COORDINATES_LOCAL );
+        circuit.loadMorphologies( gids, brain::Circuit::Coordinates::local );
     BOOST_CHECK_EQUAL( morphologies.size(), gids.size( ));
 
     // Checking the first morphology
@@ -260,7 +267,7 @@ BOOST_AUTO_TEST_CASE( load_local_morphologies )
     gids.insert(4);
     gids.insert(6);
     const brain::neuron::Morphologies repeated =
-        circuit.loadMorphologies( gids, brain::Circuit::COORDINATES_LOCAL );
+        circuit.loadMorphologies( gids, brain::Circuit::Coordinates::local );
 
     BOOST_CHECK_EQUAL( repeated.size(), gids.size( ));
     BOOST_CHECK_EQUAL( repeated[0].get(), repeated[2].get( ));
@@ -275,7 +282,7 @@ BOOST_AUTO_TEST_CASE( load_global_morphologies )
     for( uint32_t gid = 1; gid < 500; gid += 75)
         gids.insert(gid);
     const brain::neuron::Morphologies morphologies =
-        circuit.loadMorphologies( gids, brain::Circuit::COORDINATES_GLOBAL );
+        circuit.loadMorphologies( gids, brain::Circuit::Coordinates::global );
     BOOST_CHECK_EQUAL( morphologies.size(), gids.size( ));
 
     // Checking the first morphology
@@ -372,4 +379,69 @@ BOOST_AUTO_TEST_CASE(morphology_names_mvd3)
                                          "dend-ch160801B_axon-Fluo55_low.h5" ));
 }
 
-#endif
+BOOST_AUTO_TEST_CASE(compare_mvd2_mvd3)
+{
+    brion::BlueConfig config2( BBP_TEST_BLUECONFIG );
+    brain::Circuit circuit2( config2 );
+
+    brion::BlueConfig config3( BBP_TEST_BLUECONFIG3 );
+    brain::Circuit circuit3( config3 );
+
+    brion::GIDSet gids;
+    gids.insert( 21 );
+    gids.insert( 501 );
+
+    const brain::size_ts& mtypes2 = circuit2.getMorphologyTypes( gids );
+    const brain::size_ts& etypes2 = circuit2.getElectrophysiologyTypes( gids );
+    const brain::Strings& allMTypes2 = circuit2.getMorphologyNames();
+    const brain::Strings& allETypes2 = circuit2.getElectrophysiologyNames();
+    const brain::URIs& names2 = circuit2.getMorphologyURIs( gids );
+
+    const brain::size_ts& mtypes3 = circuit3.getMorphologyTypes( gids );
+    const brain::size_ts& etypes3 = circuit3.getElectrophysiologyTypes( gids );
+    const brain::Strings& allMTypes3 = circuit3.getMorphologyNames();
+    const brain::Strings& allETypes3 = circuit3.getElectrophysiologyNames();
+    const brain::URIs& names3 = circuit3.getMorphologyURIs( gids );
+
+    BOOST_CHECK_EQUAL_COLLECTIONS( mtypes2.begin(), mtypes2.end(),
+                                   mtypes3.begin(), mtypes3.end( ));
+    BOOST_CHECK_EQUAL_COLLECTIONS( etypes2.begin(), etypes2.end(),
+                                   etypes3.begin(), etypes3.end( ));
+    BOOST_CHECK_EQUAL_COLLECTIONS( allMTypes2.begin(), allMTypes2.end(),
+                                   allMTypes3.begin(), allMTypes3.end( ));
+    BOOST_CHECK_EQUAL_COLLECTIONS( allETypes2.begin(), allETypes2.end(),
+                                   allETypes3.begin(), allETypes3.end( ));
+    BOOST_CHECK_EQUAL_COLLECTIONS( names2.begin(), names2.end(),
+                                   names3.begin(), names3.end( ));
+}
+
+BOOST_AUTO_TEST_CASE( brain_circuit_random_gids )
+{
+    const brain::Circuit circuit( brion::URI( BBP_TEST_BLUECONFIG3 ));
+    const brain::GIDSet& gids = circuit.getRandomGIDs( 0.1f );
+    BOOST_CHECK_EQUAL( gids.size(), 100 );
+
+    const brain::GIDSet& gids2 = circuit.getRandomGIDs( 0.1f );
+    BOOST_CHECK_EQUAL( gids2.size(), 100 );
+
+    bool notEqual = true;
+    brain::GIDSet::const_iterator it1 = gids.begin();
+    brain::GIDSet::const_iterator it2 = gids2.begin();
+    for( ; it1 != gids.end(); ++it1, ++it2 )
+    {
+        if( *it1 != *it2 )
+        {
+            notEqual = true;
+            break;
+        }
+    }
+    BOOST_CHECK( notEqual );
+
+    const brain::GIDSet& gids3 = circuit.getRandomGIDs( 0.5f, "Layer1" );
+    BOOST_CHECK_EQUAL( gids3.size(), 10 );
+
+    BOOST_CHECK_THROW( circuit.getRandomGIDs( -5.f ), std::runtime_error );
+    BOOST_CHECK_THROW( circuit.getRandomGIDs( 1.1f ), std::runtime_error );
+}
+
+#endif // BRAIN_USE_MVD3

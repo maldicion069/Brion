@@ -1,8 +1,38 @@
 Changelog {#Changelog}
 =========
 
-# git master
+# Release 1.9.0 (git master)
 
+* [94](https://github.com/BlueBrain/Brion/pull/94):
+  Fixed SWC morphology parser for morphologies with soma contour. The parser was
+  creating invalid soma sections when the first order sections where connected
+  to arbitrary soma sample points.
+* [89](https://github.com/BlueBrain/Brion/pull/89):
+  Python wrapping of brain classes.
+* [88](https://github.com/BlueBrain/Brion/pull/88):
+  - Brain namespace enums made strongly typed.
+  - Fix for brain::Section::getSamples for sections where the first point
+    appears repeated.
+* [85](https://github.com/BlueBrain/Brion/pull/85):
+  Implement brain synapses specification
+* [84](https://github.com/BlueBrain/Brion/pull/84):
+  Brain synapses specification
+* [83](https://github.com/BlueBrain/Brion/pull/83):
+  Add brain::Circuit::getRandomGIDs()
+* [82](https://github.com/BlueBrain/Brion/pull/82):
+  Improve performance when reading synapse attributes from non-merged files
+* [81](https://github.com/BlueBrain/Brion/pull/81):
+  Fix GID out-of-bounds handling for MVD3 in brain::Circuit
+* [79](https://github.com/BlueBrain/Brion/pull/79):
+  Use PersistentMap for cache in brain::Circuit::loadMorphologies(); add thread
+  safety w/ synapses cache
+
+# Release 1.8.0 (30-Jun-2016)
+
+* [77](https://github.com/BlueBrain/Brion/pull/77):
+  Add brain::Circuit::getMorphologyTypes() and brain::Circuit::getElectrophysiologyTypes()
+* [75](https://github.com/BlueBrain/Brion/pull/75):
+  Implement morphology version 1.1 specification
 * [74](https://github.com/BlueBrain/Brion/pull/74):
   Remove deprecated enums and functions:
   - `CompartmentReport( const std::string&, const GIDSet& )` and

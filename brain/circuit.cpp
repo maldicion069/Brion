@@ -27,27 +27,14 @@
 #endif
 
 #include "circuit.h"
-#include "neuron/morphology.h"
+#include "detail/circuit.h"
 
-#include <brion/blueConfig.h>
-#include <brion/circuit.h>
-#include <brion/morphology.h>
-#include <brion/target.h>
-
-#include <lunchbox/log.h>
-
-#ifdef BRAIN_USE_MVD3
-#  include <mvd/mvd3.hpp>
-#  include <mvd/mvd_generic.hpp>
-#endif
-
-#include <boost/foreach.hpp>
-
-using boost::lexical_cast;
+#include "synapsesStream.h"
 
 namespace brain
 {
 
+<<<<<<< HEAD
 namespace
 {
 #ifdef BRAIN_USE_MVD3
@@ -277,6 +264,8 @@ private:
 };
 #endif
 
+=======
+>>>>>>> eb47d43e3626a519b128628c3def5e9088a4b184
 Circuit::Impl* newImpl( const brion::BlueConfig& config )
 {
     const std::string circuit = config.getCircuitSource().getPath();
@@ -301,7 +290,6 @@ Circuit::Circuit( const brion::BlueConfig& config )
 
 Circuit::~Circuit()
 {
-    delete _impl;
 }
 
 GIDSet Circuit::getGIDs() const
@@ -312,6 +300,17 @@ GIDSet Circuit::getGIDs() const
 GIDSet Circuit::getGIDs( const std::string& target ) const
 {
     return _impl->getGIDs( target );
+}
+
+GIDSet Circuit::getRandomGIDs( const float fraction ) const
+{
+    return _impl->getRandomGIDs( fraction, "" );
+}
+
+GIDSet Circuit::getRandomGIDs( const float fraction,
+                               const std::string& target ) const
+{
+    return _impl->getRandomGIDs( fraction, target );
 }
 
 URIs Circuit::getMorphologyURIs( const GIDSet& gids ) const
@@ -329,42 +328,90 @@ neuron::Morphologies Circuit::loadMorphologies( const GIDSet& gids,
                                                 const Coordinates coords ) const
 {
     const URIs& uris = getMorphologyURIs( gids );
+
+    // < GID, hash >
+    Strings gidHashes;
+    gidHashes.reserve( uris.size( ));
+    std::set< std::string > hashes;
+    GIDSet::const_iterator gid = gids.begin();
+    for( size_t i = 0; i < uris.size(); ++i, ++gid )
+    {
+        std::string hash( fs::canonical( uris[i].getPath( )).generic_string( ));
+
+        if( coords == Coordinates::global )
+        {
+            // store circuit + GID for transformed morphology
+            hash += fs::canonical(
+                        _impl->getCircuitSource().getPath( )).generic_string() +
+                        boost::lexical_cast< std::string >( *gid );
+            hash = servus::make_uint128( hash ).getString();
+        }
+        else
+            hash = servus::make_uint128( hash ).getString();
+
+        gidHashes.push_back( hash );
+        hashes.insert( hash );
+    }
+
+    Loaded loaded = _impl->loadFromCache( hashes );
+
+    // resolve missing morphologies and put them in GID-order into result
     neuron::Morphologies result;
     result.reserve( uris.size( ));
 
-    if( coords == COORDINATES_GLOBAL )
-    {
-        const Matrix4fs& transforms = getTransforms( gids );
-        for( size_t i = 0; i < uris.size(); ++i )
-        {
-            const URI& uri = uris[i];
-            const brion::Morphology raw( uri.getPath( ));
-            result.push_back( neuron::MorphologyPtr(
-                                 new neuron::Morphology( raw, transforms[i] )));
-        }
-        return result;
-    }
-
-    std::map< std::string, neuron::MorphologyPtr > loaded;
+    const Matrix4fs transforms =
+             coords == Coordinates::global ? getTransforms( gids ) : Matrix4fs();
     for( size_t i = 0; i < uris.size(); ++i )
     {
         const URI& uri = uris[i];
 
-        neuron::MorphologyPtr& morphology = loaded[uri.getPath()];
-        if( !morphology )
+        const std::string& hash = gidHashes[i];
+        Loaded::const_iterator it = loaded.find( hash );
+        if( it == loaded.end( ))
         {
+            neuron::MorphologyPtr morphology;
             const brion::Morphology raw( uri.getPath( ));
-            morphology.reset( new neuron::Morphology( raw ));
-        }
+            if( coords == Coordinates::global )
+                morphology.reset( new neuron::Morphology( raw, transforms[i] ));
+            else
+                morphology.reset( new neuron::Morphology( raw ));
 
-        result.push_back( morphology );
+            loaded.insert( std::make_pair( hash, morphology ));
+
+            _impl->saveToCache( hash, morphology );
+
+            result.push_back( morphology );
+        }
+        else
+            result.push_back( it->second );
     }
+
     return result;
 }
 
 Vector3fs Circuit::getPositions( const GIDSet& gids ) const
 {
     return _impl->getPositions( gids );
+}
+
+size_ts Circuit::getMorphologyTypes( const GIDSet& gids ) const
+{
+    return _impl->getMTypes( gids );
+}
+
+Strings Circuit::getMorphologyNames() const
+{
+    return _impl->getMorphologyNames();
+}
+
+size_ts Circuit::getElectrophysiologyTypes( const GIDSet& gids ) const
+{
+    return _impl->getETypes( gids );
+}
+
+Strings Circuit::getElectrophysiologyNames() const
+{
+    return _impl->getElectrophysiologyNames();
 }
 
 Matrix4fs Circuit::getTransforms( const GIDSet& gids ) const
@@ -384,14 +431,33 @@ Matrix4fs Circuit::getTransforms( const GIDSet& gids ) const
 
 }
 
+Quaternionfs Circuit::getRotations( const GIDSet& gids ) const
+{
+    return _impl->getRotations( gids );
+}
+
 size_t Circuit::getNumNeurons() const
 {
     return _impl->getNumNeurons();
 }
 
-Quaternionfs Circuit::getRotations( const GIDSet& gids ) const
+SynapsesStream Circuit::getAfferentSynapses( const GIDSet& gids,
+                                          const SynapsePrefetch prefetch ) const
 {
-    return _impl->getRotations( gids );
+    return SynapsesStream( *this, gids, true, prefetch );
+}
+
+SynapsesStream Circuit::getEfferentSynapses( const GIDSet& gids,
+                                          const SynapsePrefetch prefetch ) const
+{
+    return SynapsesStream( *this, gids, false, prefetch );
+}
+
+SynapsesStream Circuit::getProjectedSynapses( const GIDSet& preGIDs,
+                                              const GIDSet& postGIDs,
+                                          const SynapsePrefetch prefetch ) const
+{
+    return SynapsesStream( *this, preGIDs, postGIDs, prefetch );
 }
 
 }

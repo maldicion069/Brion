@@ -25,6 +25,7 @@
 #include <brain/neuron/types.h>
 
 #include <boost/noncopyable.hpp>
+#include <servus/serializable.h>
 
 namespace brain
 {
@@ -88,16 +89,18 @@ public:
 
     BRAIN_API ~Morphology();
 
-    /** @copydoc brion::Morphology::getPoints */
+    /** @sa brion::Morphology::readPoints */
     BRAIN_API const Vector4fs& getPoints() const;
 
-    /** @copydoc brion::Morphology::getSections */
+    /** @sa brion::Morphology::readSections */
     BRAIN_API const Vector2is& getSections() const;
 
-    /** @copydoc brion::Morphology::getSectionTypes */
+    /** @sa brion::Morphology::readSectionTypes
+        This type is not brain::SectionTypes because brion::SectionType
+        is not convertible to brain::neuron::SectionType. */
     BRAIN_API const SectionTypes& getSectionTypes() const;
 
-    /** @copydoc brion::Morphology::getApicals */
+    /** @sa brion::Morphology::readApicals */
     BRAIN_API const Vector2is& getApicals() const;
 
     /** Return the list of ids for the given section types. */
@@ -105,13 +108,13 @@ public:
 
     /**
      * Return the sections which have the given section type.
-     * If type is SECTION_SOMA an empty list is returned.
+     * If type is SectionType::Soma an empty list is returned.
      */
     BRAIN_API Sections getSections( SectionType type ) const;
 
     /**
      * Return the sections which have any of the given section types.
-     * No sections are returned for the type SECTION_SOMA.
+     * No sections are returned for the type SectionType::Soma.
      */
     BRAIN_API Sections getSections( const SectionTypes& types ) const;
 
@@ -130,6 +133,10 @@ public:
     BRAIN_API const Matrix4f& getTransformation() const;
 
 private:
+    friend class brain::Circuit;
+    Morphology( const void* data, const size_t size );
+    servus::Serializable::Data toBinary() const;
+
     Impl* const _impl;
 };
 

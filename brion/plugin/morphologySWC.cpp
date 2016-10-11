@@ -1,5 +1,6 @@
 /* Copyright (c) 2013-2016, EPFL/Blue Brain Project
  *                          Juan Hernando <jhernando@fi.upm.es>
+ *                          Daniel Nachbaur <daniel.nachbaur@epfl.ch>
  *
  * This file is part of Brion <https://github.com/BlueBrain/Brion>
  *
@@ -185,6 +186,11 @@ bool MorphologySWC::handles( const MorphologyInitData& initData )
     return path.substr( pos ) == ".swc";
 }
 
+CellFamily MorphologySWC::getCellFamily() const
+{
+    return FAMILY_NEURON;
+}
+
 Vector4fsPtr MorphologySWC::readPoints( MorphologyRepairStage ) const
 {
     return _points;
@@ -203,7 +209,12 @@ SectionTypesPtr MorphologySWC::readSectionTypes() const
 Vector2isPtr MorphologySWC::readApicals() const
 {
     // Can these points be inferred? Should it be done at all?
-    return Vector2isPtr(new Vector2is());
+    return Vector2isPtr( new Vector2is( ));
+}
+
+floatsPtr MorphologySWC::readPerimeters() const
+{
+    return floatsPtr( new floats( ));
 }
 
 MorphologyVersion MorphologySWC::getVersion() const
@@ -229,6 +240,11 @@ void MorphologySWC::writeSectionTypes( const SectionTypes& )
 }
 
 void MorphologySWC::writeApicals( const Vector2is& )
+{
+    LBUNIMPLEMENTED
+}
+
+void MorphologySWC::writePerimeters( const floats& )
 {
     LBUNIMPLEMENTED
 }
@@ -332,8 +348,14 @@ void MorphologySWC::_buildSampleTree( RawSWCInfo& info )
 
         if( !root )
         {
-            Sample& parent = samples[sample.parent];
-            if( !parent.valid )
+            if( sample.parent == int( currentSample ))
+            {
+                LBTHROW( std::runtime_error(
+                             "Reading swc morphology file: " + info.filename +
+                             ", found a sample point to itself" ));
+            }
+            Sample* parent = &samples[sample.parent];
+            if( !parent->valid )
             {
                 std::stringstream msg;
                 msg << "Reading swc morphology file: " << info.filename
@@ -342,17 +364,51 @@ void MorphologySWC::_buildSampleTree( RawSWCInfo& info )
                 LBTHROW( std::runtime_error( msg.str( )));
             }
 
-            if( parent.nextID != -1 )
+            if( parent->type == SWC_SECTION_SOMA )
             {
-                // The parent was already connected. Linking this sample
-                // to its sibling.
-                sample.siblingID = parent.nextID;
-                // This also means that a sequence of samples is now split
-                // in three different sections (a parent and two children).
-                info.numSections += 2;
+                // When the parent is the soma we have to handle it differently
+                // as we don't want to split a soma ring where neurites
+                // connect to arbitrary soma points in multiple sections.
+                if( sample.type == SWC_SECTION_SOMA )
+                {
+                    if( parent->nextID != -1 )
+                    {
+                        LBWARN << "Reading swc morphology file: "
+                               << info.filename
+                               << ", found bifurcation in soma section";
+                        sample.siblingID = parent->nextID;
+                    }
+                    // Linking the parent to this sample.
+                    parent->nextID = int(currentSample);
+                }
+                else
+                {
+                    info.roots.push_back( currentSample );
+                    // Sections whose parent is the soma need their parent
+                    // section to be assigned at this point.
+                    sample.parentSection = 0;
+                }
             }
-            // Linking the parent to this sample
-            parent.nextID = int(currentSample);
+            else
+            {
+                if( sample.type == SWC_SECTION_SOMA )
+                {
+                    LBTHROW( std::runtime_error(
+                             "Reading swc morphology file: " + info.filename +
+                             ", found soma sample with neurite parent" ));
+                }
+                if( parent->nextID != -1 )
+                {
+                    // The parent was already connected. Linking this sample
+                    // to its sibling.
+                    sample.siblingID = parent->nextID;
+                    // This also means that a sequence of samples is now split
+                    // in three different sections (a parent and two children).
+                    info.numSections += 2;
+                }
+                // Linking the parent to this sample.
+                parent->nextID = int(currentSample);
+            }
         }
         else
         {
@@ -440,10 +496,18 @@ void MorphologySWC::_buildStructure( RawSWCInfo& info )
 
         // Pushing first point of the section using the parent sample
         // if necessary
-        const Sample* parent =
-            sample->parent == -1 ? 0 : &samples[sample->parent];
-        if( parent && parent->type != SWC_SECTION_SOMA )
-            _points->push_back( parent->point );
+        if( sample->parent != SWC_UNDEFINED_PARENT )
+        {
+            const Sample* parent = &samples[sample->parent];
+            // If the parent sections is the soma, we connect this section
+            // to the soma only if the soma is described with more than
+            // one sample (that is, sections are not connected to point somas).
+            if( parent->type != SWC_SECTION_SOMA ||
+                parent->nextID != -1 || parent->parent != -1 )
+            {
+                _points->push_back( parent->point );
+            }
+        }
 
         // Iterate while we stay on the same section and push points
         // to the point vector.

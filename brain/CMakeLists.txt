@@ -13,11 +13,17 @@ set(BRAIN_PUBLIC_HEADERS
   spikeReportReader.h
   spikeReportWriter.h
   spikes.h
+  synapse.h
+  synapses.h
+  synapsesIterator.h
+  synapsesStream.h
   types.h
   )
 
 set(BRAIN_HEADERS
+  detail/circuit.h
   detail/spikes.h
+  detail/synapsesStream.h
   neuron/morphologyImpl.h
   )
 
@@ -30,6 +36,10 @@ set(BRAIN_SOURCES
   spikeReportReader.cpp
   spikeReportWriter.cpp
   spikes.cpp
+  synapse.cpp
+  synapses.cpp
+  synapsesIterator.cpp
+  synapsesStream.cpp
 )
 
 set(BRAIN_PUBLIC_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIRS})

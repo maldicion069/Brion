@@ -24,6 +24,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
+#include <lunchbox/log.h>
 #include <lunchbox/stdExt.h>
 #include <fstream>
 
@@ -52,8 +53,8 @@ public:
         fs::path path = source;
         const std::string ext = fs::extension( path );
         if( ext != ".mvd" && ext != ".mvd2" )
-            throw std::runtime_error( "Expecting mvd file format for circuit "
-                                      "file " + source );
+            LBTHROW( std::runtime_error( "Expecting mvd file format for "
+                                         " circuit file " + source ));
 
         typedef stde::hash_map< std::string, Section > LookUp;
         LookUp sections;
@@ -71,6 +72,9 @@ public:
                                          SECTION_CIRCUITSEEDS ));
 
         _file.open( source.c_str( ));
+        if( !_file.is_open( ))
+            LBTHROW( std::runtime_error( "Could not open MVD2 file " + source));
+
         _file >> std::ws;
         Section current = SECTION_UNKNOWN;
         while( !_file.eof( ))
@@ -97,13 +101,13 @@ public:
 
         std::vector<int32_t> indices;
         indices.reserve( gids.size( ));
-        BOOST_FOREACH( const uint32_t gid, gids)
+        BOOST_FOREACH( const uint32_t gid, gids )
         {
             if ( gid > neurons.size( ))
             {
                 std::stringstream msg;
                 msg << "Cell GID out of range: " << gid;
-                throw std::runtime_error( msg.str().c_str( ));
+                LBTHROW( std::runtime_error( msg.str().c_str( )));
             }
             indices.push_back( gid - 1 );
         }

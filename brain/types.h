@@ -26,12 +26,28 @@
 namespace brain
 {
 
-using namespace brion::enums;
+/**
+ * Loading of data during SynapsesStream::read(), otherwise load happens
+ * on-demand.
+ */
+enum class SynapsePrefetch
+{
+    none = 0,                    //!< only loads pre- and post GIDs
+    attributes = 1 << 0,         //!< topological information (section,
+                                 //!  segment, distance) and model
+                                 //!  attributes
+    positions = 1 << 1,          //!< pre/post surface/center positions
+    all = attributes | positions //!< all synapse data
+};
 
 class Circuit;
 class Spikes;
 class SpikeReportReader;
 class SpikeReportWriter;
+class Synapse;
+class Synapses;
+class SynapsesIterator;
+class SynapsesStream;
 
 using vmml::Matrix4f;
 using vmml::Quaternionf;
@@ -40,7 +56,6 @@ using vmml::Vector3f;
 using vmml::Vector4f;
 
 using brion::GIDSet;
-using brion::SectionTypes;
 using brion::Strings;
 using brion::URI;
 using brion::URIs;
@@ -49,11 +64,25 @@ using brion::Vector3fs;
 using brion::Vector4fs;
 using brion::floats;
 using brion::uint32_ts;
+using brion::size_ts;
 
 typedef std::vector< Matrix4f > Matrix4fs;
 typedef std::vector< Quaternionf > Quaternionfs;
 
 typedef boost::shared_ptr< SpikeReportReader > SpikeReportReaderPtr;
 typedef boost::shared_ptr< SpikeReportWriter > SpikeReportWriterPtr;
+
+/**
+ * The GID of a synapse is the a tuple of two numbers:
+ * - The GID of the post-synaptic cell.
+ * - The index of the synapse in the array of afferent contacts
+ *   of the post-synaptic cell before pruning/filtering.
+ * GIDs are invariant regardless of how the structural touches are
+ * converted into functional synapses during circuit building.
+ */
+typedef std::pair< uint32_t, size_t > SynapseGID;
+
+namespace detail { struct SynapsesStream; }
+
 }
 #endif

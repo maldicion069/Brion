@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2015, EPFL/Blue Brain Project
+# Copyright (c) 2013-2016, EPFL/Blue Brain Project
 #                          Daniel Nachbaur <daniel.nachbaur@epfl.ch>
 #
 # This file is part of Brion <https://github.com/BlueBrain/Brion>
@@ -9,21 +9,18 @@ if(NOT BBPTESTDATA_FOUND)
   if(COMMON_ENABLE_COVERAGE)
     message(FATAL_ERROR "Coverage report generation requires test data")
   endif()
-  if(NOT TARGET ${PROJECT_NAME}-tests)
-    add_custom_target(${PROJECT_NAME}-tests)
-    set_target_properties(${PROJECT_NAME}-tests PROPERTIES
-      EXCLUDE_FROM_DEFAULT_BUILD ON FOLDER ${PROJECT_NAME}/tests)
-  endif()
   return()
 endif()
 
 configure_file(paths.h.in ${PROJECT_BINARY_DIR}/tests/paths.h)
 include_directories(${PROJECT_BINARY_DIR}/tests)
 
-set(TEST_LIBRARIES ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} Brain Brion BBPTestData)
-if(LUNCHBOX_USE_SKV)
-  common_find_package(skv REQUIRED)
-  include_directories(${SKV_INCLUDE_DIRS})
-  list(APPEND TEST_LIBRARIES fxlogger)
+set(TEST_LIBRARIES ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} Brion BBPTestData)
+if(NOT COMMON_USE_CXX03)
+  list(APPEND TEST_LIBRARIES Brain)
+else()
+  file(GLOB EXCLUDE_FROM_TESTS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} brain/*.cpp)
 endif()
 include(CommonCTest)
+
+add_subdirectory(brain/python)

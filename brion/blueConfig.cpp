@@ -101,7 +101,7 @@ public:
         const int subs[] = {1, 2, 3};
         boost::sregex_token_iterator i( fileString.begin(), fileString.end(),
                                         regx, subs );
-        for( boost::sregex_token_iterator j; i != j; )
+        for( boost::sregex_token_iterator end; i != end; )
         {
             const std::string& typeStr = *i++;
             const std::string& name = *i++;
@@ -117,8 +117,8 @@ public:
                 boost::lexical_cast< BlueConfigSection >( typeStr );
             if( type == brion::CONFIGSECTION_UNKNOWN )
             {
-                LBWARN << "Found unknown section '" << typeStr
-                       << "' in BlueConfig file " << source << std::endl;
+                LBDEBUG << "Found unknown section '" << typeStr
+                        << "' in BlueConfig file " << source << std::endl;
                 continue;
             }
 
@@ -303,11 +303,7 @@ URI BlueConfig::getReportSource( const std::string& report ) const
         return URI( std::string( "file://" ) + _impl->getOutputRoot() + "/" +
                     report + ".h5" );
 
-    if( format == "stream" || format == "leveldb" || format == "skv" )
-        return URI( _impl->getOutputRoot( ));
-
-    LBWARN << "Unknown report format " << format << std::endl;
-    return URI();
+    return URI( _impl->getOutputRoot( ));
 }
 
 URI BlueConfig::getSpikeSource() const

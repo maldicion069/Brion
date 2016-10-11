@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, EPFL/Blue Brain Project
+/* Copyright (c) 2013-2016, EPFL/Blue Brain Project
  *                          Daniel Nachbaur <daniel.nachbaur@epfl.ch>
  *
  * This file is part of Brion <https://github.com/BlueBrain/Brion>
@@ -17,7 +17,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-/** @file enums.h Enumerations used in Brion. */
+/** @file brion/enums.h Enumerations used in Brion. */
 
 #ifndef BRION_ENUMS
 #define BRION_ENUMS
@@ -26,7 +26,6 @@
 
 namespace brion
 {
-/** @namespace enums Enumeration definitions */
 namespace enums
 {
 
@@ -79,12 +78,18 @@ enum MorphologyRepairStage
 /** The supported versions for morphology files. */
 enum MorphologyVersion
 {
-    MORPHOLOGY_VERSION_1 = 1, //!< @deprecated use MORPHOLOGY_VERSION_H5_1
-    MORPHOLOGY_VERSION_2 = 2, //!< @deprecated use MORPHOLOGY_VERSION_H5_2
     MORPHOLOGY_VERSION_H5_1 = 1,
     MORPHOLOGY_VERSION_H5_2 = 2,
+    MORPHOLOGY_VERSION_H5_1_1 = 3,
     MORPHOLOGY_VERSION_SWC_1 = 101,
     MORPHOLOGY_VERSION_UNDEFINED
+};
+
+/** The cell family represented by brion::Morphology. */
+enum CellFamily
+{
+    FAMILY_NEURON = 0,
+    FAMILY_GLIA = 1
 };
 
 /** Output stream formatter for MorphologyVersion */
@@ -150,7 +155,8 @@ enum SectionType
     SECTION_AXON = 2,
     SECTION_DENDRITE = 3,        //!< general or basal dendrite (near to soma)
     SECTION_APICAL_DENDRITE = 4, //!< apical dendrite (far from soma)
-    SECTION_ALL //!< @internal must be last
+    SECTION_GLIA_PROCESS = 2,
+    SECTION_GLIA_ENDFOOT = 3
 };
 
 /** The supported attributes of a synapse. */
